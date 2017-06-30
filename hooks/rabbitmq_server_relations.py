@@ -117,7 +117,10 @@ STATS_DATAFILE = os.path.join(RABBIT_DIR, 'data',
 @harden()
 def install():
     pre_install_hooks()
-    # NOTE(jamespage) install actually happens in config_changed hook
+    add_source(config('source'), config('key'))
+    status_set('maintenance', 'Installing/upgrading RabbitMQ packages')
+    apt_update(fatal=True)
+    apt_install(rabbit.PACKAGES, fatal=True)
 
 
 def validate_amqp_config_tracker(f):
@@ -667,6 +670,8 @@ MAN_PLUGIN = 'rabbitmq_management'
 @harden()
 def config_changed():
 
+
+    log('running hook: config_changed', DEBUG)
     # Update hosts with this unit's information
     rabbit.update_hosts_file(
         {rabbit.get_unit_ip(config_override=rabbit.CLUSTER_OVERRIDE_CONFIG,
@@ -675,15 +680,18 @@ def config_changed():
 
     # Add archive source if provided
     add_source(config('source'), config('key'))
-    apt_update(fatal=True)
     # Copy in defaults file for updated ulimits
     shutil.copyfile(
         'templates/rabbitmq-server',
         '/etc/default/rabbitmq-server')
+
     # Install packages to ensure any changes to source
     # result in an upgrade if applicable.
-    status_set('maintenance', 'Installing/upgrading RabbitMQ packages')
-    apt_install(rabbit.PACKAGES, fatal=True)
+    # only if we change the source to reflect newer archive 
+    if rabbit.archive_upgrade_available():
+        status_set('maintenance', 'Installing/upgrading RabbitMQ packages')
+        apt_update(fatal=True)
+        apt_install(rabbit.PACKAGES, fatal=True)
 
     open_port(5672)
 

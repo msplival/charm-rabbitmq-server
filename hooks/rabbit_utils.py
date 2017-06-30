@@ -107,6 +107,13 @@ CLUSTER_INTERFACE = 'cluster'
 _named_passwd = '/var/lib/charm/{}/{}.passwd'
 _local_named_passwd = '/var/lib/charm/{}/{}.local_passwd'
 
+upgrade_paths = {
+    'cloud:trusty-juno': 'cloud:trusty-kilo',
+    'cloud:trusty-kilo': 'cloud:trusty-liberty',
+    'cloud:trusty-liberty': 'cloud:trusty-mitaka',
+}
+
+
 
 # hook_contexts are used as a convenient mechanism to render templates
 # logically, consider building a hook_context for template rendering so
@@ -1079,3 +1086,33 @@ def leader_node_is_ready():
     return (rabbitmq_is_installed() and
             is_leader() and
             cluster_ready())
+
+
+def archive_upgrade_available():
+    """Check if the change in sources.list would warant running 
+    apt-get update/upgrade
+    
+    @returns boolean:
+    """
+    log('checking if upgrade is available', DEBUG)
+
+    c = config()
+    old_version = c.previous('source')
+    log('old_version is {}'.format(old_version), DEBUG)
+
+    new_version = config('source')
+    if new_version:
+        # replace all whitespace
+        new_version = new_version.replace(' ', '')
+    log('new_version: {}'.format(new_version), DEBUG)
+
+    if old_version in upgrade_paths:
+        if new_version == upgrade_paths[old_version]:
+            log("{} to {} is a valid upgrade path.  Proceeding.".format(
+                old_version, new_version))
+            return True
+        else:
+            # Log a helpful error message
+            log("Invalid upgrade path from {} to {}.".format(old_version,
+                                                             new_version)
+            )
