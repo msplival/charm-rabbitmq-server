@@ -6,3 +6,5 @@ revision
 .testrepository
 *.sw[nop]
 *.pyc
+.project
+.pydevproject
